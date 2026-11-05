@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Fluxo de CRM - Visualização Interativa | Drogarias Raji</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brand:#0e2a47;
+    --font:'Inter','Segoe UI',system-ui,-apple-system,Arial,sans-serif;
+    --font-display:'Sora','Inter','Segoe UI',sans-serif;
+    --green:#0e8a60; --green-2:#0aa870;
+    --line:#e3e9f2; --muted:#64748b; --ink:#1f2937;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--font);color:var(--ink);display:flex;flex-direction:column;overflow:hidden;background:#eef2f7}
+
+  /* ===== HEADER ===== */
+  header{display:flex;align-items:center;gap:18px;padding:10px 20px;background:linear-gradient(90deg,#ffffff,#f5f8fc);
+    border-bottom:1px solid var(--line);z-index:20;flex:0 0 auto;box-shadow:0 2px 10px rgba(14,42,71,.06)}
+  body.zen header{display:none}
+  .brand-logo{display:flex;align-items:center;gap:10px;color:var(--brand)}
+  .logo-icon{width:46px;height:46px;flex:0 0 auto}
+  .logo-text{display:flex;flex-direction:column;line-height:1}
+  .lt-top{align-self:flex-end;font-weight:700;letter-spacing:.32em;font-size:11px}
+  .lt-main{font-family:var(--font-display);font-weight:800;font-size:30px;letter-spacing:.01em}
+  .lt-sub{align-self:flex-start;font-weight:600;letter-spacing:.28em;font-size:10px;margin-top:3px}
+  .htxt h1{font-family:var(--font-display);font-size:15px;line-height:1.2;font-weight:700;color:var(--brand)}
+  .htxt p{font-size:12px;color:var(--muted)}
+  .hactions{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .badge-roval{background:#fff7d6;border:1px solid #f0dc82;color:#7a5b00;padding:7px 12px;border-radius:999px;font-weight:700;font-size:12px;white-space:nowrap}
+  .hbtn{padding:9px 14px;border-radius:10px;border:1px solid #d7dce4;background:#fff;font-family:var(--font);font-weight:600;font-size:13px;
+    cursor:pointer;display:flex;gap:7px;align-items:center;box-shadow:0 1px 2px rgba(16,24,40,.06);transition:.15s;color:#334155}
+  .hbtn:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(16,24,40,.12)}
+  .hbtn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .hbtn.green{background:var(--green);color:#fff;border-color:var(--green)}
+
+  /* ===== CANVAS (FUNDO INFINITO NO VIEWPORT) ===== */
+  #viewport{flex:1;position:relative;overflow:hidden;touch-action:none;cursor:grab;
+    background-color:#f7f9fc;background-image:radial-gradient(#d9e0eb 1.1px,transparent 1.1px);background-size:24px 24px}
+  #viewport.panning{cursor:grabbing}
+  #world{position:absolute;top:0;left:0;width:2400px;height:1400px;transform-origin:0 0}
+  #edges{position:absolute;top:0;left:0;pointer-events:none}
+  #edges path{fill:none;stroke:#a9b8c9;stroke-width:1.6}
+  #edges path.hl{stroke:#0b6cf4;stroke-width:2.4}
+
+  /* ===== NODES ===== */
+  .node{position:absolute;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 2px 6px rgba(16,24,40,.08);
+    padding:11px 13px;font-size:12.5px;cursor:grab;user-select:none;touch-action:none;transition:box-shadow .15s}
+  .node:hover{box-shadow:0 8px 20px rgba(16,24,40,.14)}
+  .node:active{cursor:grabbing}
+  .node.selected{outline:2px solid #0b6cf4;outline-offset:2px}
+  .node.process{text-align:center;color:#374151;padding:13px;font-weight:500}
+  .node.start{border:1.5px solid #7b8794;text-align:center;font-weight:600;line-height:1.5}
+  .node.funnel{background:linear-gradient(135deg,var(--green),var(--green-2));border:none;color:#fff;font-family:var(--font-display);
+    font-weight:700;text-align:center;letter-spacing:.5px;padding:17px 12px;font-size:13px;text-transform:uppercase;border-radius:10px;
+    box-shadow:0 8px 18px rgba(14,138,96,.28)}
+  .node.auto{background:linear-gradient(135deg,#101828,#233044);border:none;color:#fff;font-weight:700;text-align:center;font-size:10.5px;
+    letter-spacing:.8px;padding:9px 8px;border-radius:7px}
+  .node.message{background:linear-gradient(180deg,#f0fbf5,#e6f7ee);border:1px solid #c4e8d4;border-left:4px solid #2fbf71;color:#1c4532;
+    text-align:left;font-size:11.8px;line-height:1.55;border-radius:10px}
+  .node.message strong{display:block;font-size:12.3px;color:#0f5132;margin-bottom:4px;font-weight:700}
+  .node.message em{display:block;color:#3a7a5c;font-style:normal;font-size:10.5px;margin-bottom:6px;font-weight:600}
+  .node.message p{margin-bottom:5px}
+  .node.note{background:#f6f8fa;border:1px solid #e2e5ea;color:#6b7280;font-size:10.5px;letter-spacing:.3px;text-transform:uppercase;line-height:1.6}
+  .node.annot{background:#fdeeee;border:1px solid #f3c7c7;border-left:4px solid #e05252;color:#b42323;font-size:11.8px;font-weight:500}
+  .node.annot.upper{text-transform:uppercase;font-weight:700;font-size:11px}
+  .node.system{background:linear-gradient(180deg,#eef4ff,#e6efff);border:1px solid #c9d9f6;border-left:4px solid #0b6cf4;color:#1e3a8a;
+    text-align:left;font-size:11.8px;line-height:1.55;border-radius:10px;font-weight:500}
+  .read{color:#199f68;font-size:10.5px;font-weight:700;display:inline-block;margin-top:6px;cursor:pointer}
+  .node.note .read{color:#8a94a3}
+
+  /* ===== CONTROLES FLUTUANTES ===== */
+  .zoomctl{position:absolute;left:14px;bottom:14px;display:flex;flex-direction:column;gap:8px;z-index:15}
+  body.zen .helpchip,body.zen .legend,body.zen #details{display:none!important}
+  .zoomctl button{width:40px;height:40px;background:#fff;border:1px solid #d7dce4;border-radius:11px;font-size:17px;cursor:pointer;
+    box-shadow:0 2px 8px rgba(16,24,40,.12);transition:.15s}
+  .zoomctl button:hover{background:#f4f7fb;transform:translateY(-1px)}
+  #zoomLabel{background:#fff;border:1px solid #d7dce4;border-radius:9px;padding:4px 0;font-size:11px;text-align:center;color:#475569;font-weight:600}
+  .helpchip{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.95);border:1px solid var(--line);
+    border-radius:999px;padding:8px 18px;font-size:12px;color:#475569;z-index:15;box-shadow:0 3px 10px rgba(16,24,40,.10);white-space:nowrap;backdrop-filter:blur(4px)}
+  .legend{position:absolute;right:14px;bottom:14px;background:#fff;border:1px solid #d7dce4;border-radius:13px;padding:11px 15px;font-size:11px;
+    z-index:15;display:grid;gap:6px;box-shadow:0 3px 10px rgba(16,24,40,.10)}
+  .legend b{font-size:11px;display:block;margin-bottom:2px}
+  .legend div{display:flex;align-items:center;gap:8px;color:#475569}
+  .chip{width:12px;height:12px;border-radius:4px;display:inline-block;flex:0 0 auto}
+
+  /* ===== PAINEL DETALHES / EDIÇÃO ===== */
+  #details{position:fixed;top:80px;right:16px;width:400px;max-height:calc(100vh - 116px);overflow:auto;background:#fff;border:1px solid var(--line);
+    border-radius:16px;box-shadow:0 16px 40px rgba(16,24,40,.20);padding:20px;z-index:30;transform:translateX(120%);transition:transform .25s ease}
+  #details.open{transform:none}
+  #details h2{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;font-weight:700}
+  #details .dbadge{display:inline-block;padding:4px 11px;border-radius:999px;font-size:11px;font-weight:700;margin-bottom:10px}
+  #details h3{font-family:var(--font-display);font-size:17px;margin-bottom:8px;line-height:1.3;color:var(--brand)}
+  #details .trig{background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:9px;padding:8px 10px;font-size:12px;color:#475569;margin-bottom:10px}
+  #details p{font-size:13px;line-height:1.6;margin-bottom:10px;color:#334155;white-space:pre-line}
+  #dclose{position:absolute;top:12px;right:12px;border:none;background:#f1f5f9;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:15px;color:#475569}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+  .field input,.field textarea{width:100%;border:1px solid #cbd5e1;border-radius:9px;padding:9px 10px;font-family:var(--font);font-size:13px;color:var(--ink);background:#fbfdff}
+  .field textarea{min-height:150px;resize:vertical;line-height:1.5}
+  .field input:focus,.field textarea:focus{outline:2px solid #bcd7ff;border-color:#0b6cf4}
+  .edit-actions{display:flex;gap:8px;margin-top:6px}
+  .hint{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5}
+
+  /* ===== TOAST ===== */
+  #toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);background:var(--brand);color:#fff;padding:11px 20px;border-radius:999px;
+    font-size:13px;font-weight:600;box-shadow:0 10px 26px rgba(14,42,71,.35);opacity:0;pointer-events:none;transition:.3s;z-index:60}
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+
+  /* ===== CABEÇALHO SÓ DE IMPRESSÃO ===== */
+  .print-head{display:none;align-items:center;gap:14px;padding:8mm 10mm 4mm;color:var(--brand)}
+  .print-head .logo-icon{width:34px;height:34px}
+  .print-head .lt-main{font-size:22px}
+  .print-head .lt-top{font-size:8px}
+  .print-head .lt-sub{font-size:7px}
+  .print-head h1{font-family:var(--font-display);font-size:16px}
+  .print-head p{font-size:11px;color:var(--muted)}
+
+  /* ===== IMPRESSÃO / PDF VETORIAL ===== */
+  @media print{
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    @page{size:645mm 405mm;margin:0}
+    html,body{height:auto;overflow:visible;background:#fff}
+    header,.zoomctl,.helpchip,.legend,#details,#toast{display:none!important}
+    .print-head{display:flex!important}
+    #viewport{overflow:visible;height:auto;flex:none;background:#fff!important;background-image:none!important}
+    #world{transform:none!important;position:relative}
+    .node{box-shadow:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand-logo">
+    <svg class="logo-icon" viewBox="0 0 100 100" aria-hidden="true">
+      <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="11"/>
+      <circle cx="50" cy="50" r="24" fill="none" stroke="currentColor" stroke-width="17" stroke-dasharray="31.7 6" stroke-dashoffset="34.7"/>
+    </svg>
+    <div class="logo-text">
+      <span class="lt-top">GRUPO</span>
+      <span class="lt-main">ÚNICO</span>
+      <span class="lt-sub">CONTATO</span>
+    </div>
+  </div>
+  <div class="htxt">
+    <h1>Fluxo de CRM - Visualização Interativa</h1>
+    <p>Mapeamento de Processos e Automação</p>
+  </div>
+  <div class="hactions">
+    <span class="badge-roval">Drogarias Raji</span>
+    <button class="hbtn green" id="btnSaveHtml" title="Baixa uma cópia deste HTML com mensagens e posições embutidas">💾 Salvar HTML</button>
+    <button class="hbtn primary" id="btnPdf" title="Gera PDF vetorial em alta resolução">📄 Exportar PDF</button>
+    <button class="hbtn" id="btnReset" title="Descarta edições salvas neste navegador">↺ Restaurar</button>
+  </div>
+</header>
+
+<div class="print-head">
+  <svg class="logo-icon" viewBox="0 0 100 100" aria-hidden="true">
+    <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="11"/>
+    <circle cx="50" cy="50" r="24" fill="none" stroke="currentColor" stroke-width="17" stroke-dasharray="31.7 6" stroke-dashoffset="34.7"/>
+  </svg>
+  <div class="logo-text">
+    <span class="lt-top">GRUPO</span>
+    <span class="lt-main">ÚNICO</span>
+    <span class="lt-sub">CONTATO</span>
+  </div>
+  <div>
+    <h1>Fluxo de CRM — Drogarias Raji</h1>
+    <p>Recompra (ciclo de 30 dias), reativação de clientes inativos (90+ dias) e integração Linx Big → CRM Único</p>
+  </div>
+</div>
+
+<div id="viewport">
+  <div id="world">
+    <svg id="edges" width="2400" height="1400">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0L10,5L0,10z" fill="#a9b8c9"></path>
+        </marker>
+        <marker id="arrowHl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0L10,5L0,10z" fill="#0b6cf4"></path>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+
+  <div class="helpchip ui-overlay">🖱️ Arraste o fundo = mover &nbsp;•&nbsp; Scroll = zoom &nbsp;•&nbsp; Arraste cards = organizar &nbsp;•&nbsp; Clique = detalhes/editar &nbsp;•&nbsp; 2 cliques = centralizar &nbsp;•&nbsp; 👁 = modo foco</div>
+
+  <div class="zoomctl ui-overlay">
+    <button id="btnZen" title="Modo foco: esconde menus para ver o fluxo completo">👁</button>
+    <button id="zin" title="Zoom +">+</button>
+    <button id="zout" title="Zoom −">−</button>
+    <button id="zfit" title="Enquadrar fluxo">⛶</button>
+    <div id="zoomLabel">100%</div>
+  </div>
+
+  <div class="legend ui-overlay">
+    <b>Legenda</b>
+    <div><span class="chip" style="background:linear-gradient(135deg,#0e8a60,#0aa870)"></span> Funil / fluxo</div>
+    <div><span class="chip" style="background:#101828"></span> Automação do sistema</div>
+    <div><span class="chip" style="background:#e6efff;border:1px solid #0b6cf4"></span> Ação do CRM / integração</div>
+    <div><span class="chip" style="background:#e6f7ee;border:1px solid #2fbf71"></span> Mensagem automática (editável)</div>
+    <div><span class="chip" style="background:#fff;border:1px solid #dfe5ec"></span> Etapa / decisão</div>
+    <div><span class="chip" style="background:#fdeeee;border:1px solid #e05252"></span> Regra / ação da equipe</div>
+    <div><span class="chip" style="background:#f6f8fa;border:1px solid #e2e5ea"></span> Nota de escopo / configuração</div>
+  </div>
+</div>
+
+<div id="details">
+  <button id="dclose" title="Fechar">✕</button>
+  <h2>Detalhes do Elemento</h2>
+  <div id="dbody"></div>
+</div>
+
+<div id="toast"></div>
+
+<script type="application/json" id="saved-edits">{}</script>
+
+<script>
+/* ================= CAPTURA DO TEMPLATE LIMPO ================= */
+const PRISTINE = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+const KEY = 'unicoRajiEdits_v2';
+
+/* ================= DADOS DO FLUXO (DROGARIAS RAJI) — LAYOUT ORGANIZADO ================= */
+const NODES = [
+ /* ----- INTEGRAÇÃO LINX BIG → CRM (linha superior) ----- */
+ {id:'funInt', type:'funnel', x:60, y:40, w:300, text:'INTEGRAÇÃO — LINX BIG → CRM ÚNICO'},
+ {id:'linxSrc', type:'process', x:400, y:40, w:210, text:'Linx Big<br>Vendas registradas (incluindo balcão)'},
+ {id:'prog', type:'system', x:650, y:40, w:230, text:'Rotina do programador da Raji<br>Consulta o Linx e envia os dados à Único'},
+ {id:'crmRecv', type:'system', x:920, y:40, w:230, text:'CRM Único<br>Recebe e relaciona os dados ao cadastro do cliente'},
+ {id:'noteDados', type:'note', x:400, y:150, w:210, text:'DADOS MÍNIMOS: CLIENTE, WHATSAPP, DATA DA VENDA E HISTÓRICO DA ÚLTIMA COMPRA — BASE HISTÓRICA + NOVAS VENDAS',
+   full:'Conjunto mínimo de dados:\n• Identificação do cliente\n• WhatsApp\n• Data da venda\n• Histórico da última compra\n\nO programador envia a base histórica inicial e as novas vendas.\nMeio de envio, formato, frequência de atualização, segurança e tratamento de falhas serão definidos na validação técnica.'},
+ {id:'noteResp1', type:'note', x:650, y:150, w:230, text:'RESPONSABILIDADE RAJI: ACESSO AO LINX, ROTINA DE CONSULTA, VENDAS DE BALCÃO, BASE HISTÓRICA E ATUALIZAÇÃO',
+   full:'Responsabilidade da Drogarias Raji (Rafael / programador):\n• Acessar o banco do Linx Big com o acesso de consulta disponibilizado;\n• Desenvolver e manter a rotina que consulta o Linx, identifica clientes e vendas e envia os dados à Único;\n• Garantir que as vendas de balcão também sejam consideradas;\n• Disponibilizar e manter atualizada a base histórica (clientes com mais de 90 dias sem compra).'},
+ {id:'noteResp2', type:'note', x:920, y:150, w:230, text:'RESPONSABILIDADE ÚNICO: FORMATO DOS DADOS, RECEBIMENTO/CADASTRO, GATILHOS, MENSAGENS E RELATÓRIOS',
+   full:'Responsabilidade da Único Contato:\n• Definir com o programador o formato e os requisitos para receber os dados;\n• Receber e relacionar os dados enviados ao cadastro do CRM;\n• Configurar gatilhos, mensagens, etapas de atendimento e regras dos dois fluxos;\n• Disponibilizar o acompanhamento e os relatórios dentro do CRM.'},
+
+ /* ----- FLUXO DE RECOMPRA (coluna central) ----- */
+ {id:'funRec', type:'funnel', x:1250, y:200, w:260, text:'FLUXO DE RECOMPRA — CICLO DE 30 DIAS'},
+ {id:'vendaReg', type:'process', x:1270, y:270, w:220, text:'Venda identificada no Linx<br>(data da venda = início do ciclo)'},
+ {id:'ciclo', type:'auto', x:1270, y:360, w:220, text:'AUTOMAÇÃO DO SISTEMA<br>CICLO DE RELACIONAMENTO DE 30 DIAS'},
+ {id:'msg25', type:'message', x:1250, y:450, w:260, title:'1º contato — Recompra (Dia 25)', trigger:'{25 dias após a data da venda — dado recebido do Linx Big}',
+   paras:['Olá, [Nome]! Aqui é da Drogarias Raji 💚 Passando para lembrar que estamos com saudade e de portas abertas para você.',
+     'Se precisar renovar seus medicamentos ou produtos de cuidado, é só responder por aqui ou passar na loja. Estamos prontos para te atender com o mesmo carinho de sempre!']},
+ {id:'nrA', type:'process', x:1270, y:650, w:220, text:'Não respondeu'},
+ {id:'msg28', type:'message', x:1250, y:720, w:260, title:'2º contato — Recompra (Dia 28)', trigger:'{28 dias após a data da venda — última mensagem do ciclo}',
+   paras:['Olá, [Nome]! Só um lembrete rápido: nossa equipe está à disposição para preparar o que você precisar, com atendimento de perto e agilidade. 💚 É só responder por aqui!']},
+ {id:'nrB', type:'process', x:1270, y:900, w:220, text:'Não respondeu'},
+ {id:'fimCad', type:'annot', x:1250, y:970, w:260, text:'Fim do ciclo — apenas 2 contatos (dias 25 e 28), sem pesquisa ou mensagens adicionais'},
+ {id:'attTeam', type:'process', x:980, y:540, w:240, text:'Respondeu — equipe assume a conversa e conduz a venda'},
+ {id:'noteControle', type:'note', x:980, y:640, w:240, text:'CONTROLE: CLIENTE QUE FAZ NOVA COMPRA DEIXA DE RECEBER AS MENSAGENS DO CICLO ATUAL (EVITAR CONTATO INDEVIDO)',
+   full:'Controle para evitar contato indevido:\n• Cliente que registra nova compra no Linx sai da cadência do ciclo atual;\n• O texto final das mensagens e a operação prática do cashback serão definidos na validação.'},
+
+ /* ----- FLUXO DE REATIVAÇÃO (coluna direita) ----- */
+ {id:'srcReat', type:'system', x:1750, y:200, w:260, text:'Base histórica + novas vendas recebidas no CRM (clientes e vendas)'},
+ {id:'funReat', type:'funnel', x:1750, y:280, w:260, text:'FLUXO DE REATIVAÇÃO — INATIVOS 90+ DIAS'},
+ {id:'inativo', type:'process', x:1750, y:360, w:260, text:'Cliente há mais de 90 dias sem comprar<br>(identificado pela base e pelas atualizações)'},
+ {id:'noteBase', type:'note', x:2060, y:360, w:250, text:'BASE INICIAL: 3.580 CLIENTES ACIMA DE 180 DIAS — CRITÉRIO OPERACIONAL: 90 DIAS SEM COMPRA',
+   full:'Base histórica inicial mencionada na reunião: 3.580 clientes acima de 180 dias.\nCritério operacional de inatividade definido pelo Rafael: mais de 90 dias sem compra.'},
+ {id:'msgReat', type:'message', x:1750, y:460, w:260, title:'Abordagem automática — Cliente inativo', trigger:'{Ao entrar no critério de 90+ dias sem compra — mensagem única}',
+   paras:['[Nome], sentimos sua falta por aqui! 💚 Notamos que faz um tempo que você não compra na Drogarias Raji. Poderia nos contar o que aconteceu? Queremos entender onde podemos ter falhado e como melhorar para você.']},
+ {id:'respReat', type:'process', x:1750, y:660, w:260, text:'Cliente respondeu?'},
+ {id:'semResp', type:'annot', x:1750, y:740, w:260, text:'Sem resposta — NÃO haverá segunda tentativa; fluxo encerrado sem novo contato'},
+ {id:'attReat', type:'process', x:2060, y:660, w:250, text:'Sim — equipe assume a conversa e entende o motivo do afastamento'},
+ {id:'cashback', type:'annot', x:2060, y:760, w:250, text:'Oferta de cashback para próxima compra acima de R$ 100 (valor a definir)'},
+ {id:'recup', type:'process', x:2060, y:860, w:250, text:'Recuperação: cliente volta a comprar (venda registrada no Linx)'},
+
+ /* ----- FAIXA DE NOTAS DE ESCOPO (base) ----- */
+ {id:'noteInd', type:'note', x:60, y:1150, w:300, text:'ACOMPANHAMENTO E INDICADORES: CLIENTES POR FLUXO E MENSAGENS ENVIADAS; RESPOSTAS E MOTIVOS; RECUPERAÇÕES; VENDAS RECUPERADAS E VALORES; HISTÓRICO E VENDEDOR RESPONSÁVEL',
+   full:'Acompanhamento e indicadores no CRM:\n• Clientes incluídos em cada fluxo e quantidade de mensagens enviadas;\n• Clientes que responderam e motivos informados para o afastamento;\n• Clientes que voltaram a comprar após a ação (recuperações);\n• Vendas recuperadas e respectivos valores, quando disponíveis no dado recebido do Linx;\n• Histórico do atendimento e identificação do vendedor responsável (análise por equipe e por etapa).\n\nObjetivo gerencial: entender onde as vendas estão sendo perdidas, por que os clientes deixam de comprar e quais ações efetivamente recuperam clientes.'},
+ {id:'noteRegra', type:'note', x:400, y:1150, w:300, text:'REGRA IMPORTANTE: A QUANTIDADE DE CAIXAS NÃO PERMITE ESTIMAR O TÉRMINO DO MEDICAMENTO (POSOLOGIA VARIA). SEM TRILHAS 30/60/90 — LEMBRETE GERAL NOS DIAS 25 E 28',
+   full:'Regra importante:\nA quantidade de caixas não permite estimar com segurança quando o medicamento termina, pois a posologia varia de cliente para cliente.\nPor isso o escopo NÃO presume tratamentos de 30, 60 ou 90 dias por produto: o fluxo acordado é um lembrete geral, com contatos nos dias 25 e 28 do ciclo de 30 dias.'},
+ {id:'noteFora', type:'note', x:740, y:1150, w:300, text:'FORA DO ESCOPO: FOLLOW-UP DE ORÇAMENTO NÃO CONVERTIDO (EQUIPE JÁ FAZ); PREVISÃO DE TÉRMINO POR CAIXAS; NOVA TENTATIVA PARA INATIVOS SEM RESPOSTA',
+   full:'Itens fora do escopo principal:\n• Follow-up automático de orçamento não convertido (a equipe já realiza esse acompanhamento);\n• Previsão do término do medicamento com base na quantidade de caixas ou criação automática de trilhas de 30, 60 e 90 dias por produto;\n• Nova tentativa automática para clientes inativos que não responderem à primeira mensagem.'},
+ {id:'noteZap', type:'note', x:1080, y:1150, w:300, text:'DISPAROS RESPEITAM AUTORIZAÇÕES DE CONTATO E REGRAS DO WHATSAPP. VALOR DO CASHBACK E TEXTO FINAL DAS MENSAGENS DEFINIDOS NA VALIDAÇÃO',
+   full:'Conformidade e pendências de validação:\n• Os disparos devem respeitar as autorizações de contato e as regras aplicáveis ao canal WhatsApp;\n• O valor do cashback não foi definido na reunião;\n• A operação prática de concessão do cashback e o texto final das mensagens serão definidos na validação.\n\nPremissa de implantação: as automações dependem da entrega e validação dos dados enviados pelo programador da Drogarias Raji.'}
+];
+
+const EDGES = [
+ ['funInt','linxSrc','right','left'],
+ ['linxSrc','prog','right','left'],
+ ['prog','crmRecv','right','left'],
+ ['linxSrc','noteDados','bottom','top'],
+ ['prog','noteResp1','bottom','top'],
+ ['crmRecv','noteResp2','bottom','top'],
+ ['crmRecv','funRec','right','left'],
+ ['crmRecv','srcReat','right','left'],
+ ['funRec','vendaReg','bottom','top'],
+ ['vendaReg','ciclo','bottom','top'],
+ ['ciclo','msg25','bottom','top'],
+ ['msg25','nrA','bottom','top'],
+ ['nrA','msg28','bottom','top'],
+ ['msg28','nrB','bottom','top'],
+ ['nrB','fimCad','bottom','top'],
+ ['msg25','attTeam','left','right'],
+ ['msg28','attTeam','left','right'],
+ ['attTeam','noteControle','bottom','top'],
+ ['srcReat','funReat','bottom','top'],
+ ['funReat','inativo','bottom','top'],
+ ['inativo','noteBase','right','left'],
+ ['inativo','msgReat','bottom','top'],
+ ['msgReat','respReat','bottom','top'],
+ ['respReat','semResp','bottom','top'],
+ ['respReat','attReat','right','left'],
+ ['attReat','cashback','bottom','top'],
+ ['cashback','recup','bottom','top']
+];
+
+const TYPE_BADGE = {
+ start:['Regra de atendimento','#e8f0ff','#0b6cf4'],
+ process:['Etapa do processo','#e8f7f0','#0f8a5f'],
+ funnel:['Funil / fluxo','#e8f7f0','#0e8a60'],
+ auto:['Automação do sistema','#eef2ff','#4338ca'],
+ system:['Ação do CRM / integração','#e8f0ff','#0b6cf4'],
+ message:['Mensagem automática (editável)','#e8f7ee','#199f68'],
+ note:['Nota de escopo / configuração','#f1f5f9','#64748b'],
+ 'annot upper':['Regra / ação da equipe','#fdeeee','#b42323'],
+ annot:['Regra / ação da equipe','#fdeeee','#b42323']
+};
+
+/* ================= PERSISTÊNCIA ================= */
+const byId = {};
+NODES.forEach(n=> byId[n.id]=n);
+let edits = {};
+try{ edits = Object.assign({}, JSON.parse(document.getElementById('saved-edits').textContent||'{}'), JSON.parse(localStorage.getItem(KEY)||'{}') ); }catch(e){ edits = {}; }
+if(edits.__pos){ NODES.forEach(n=>{ const p=edits.__pos[n.id]; if(p){ n.x=p.x; n.y=p.y; } }); }
+Object.keys(edits).forEach(id=>{ if(id!=='__pos' && byId[id]) Object.assign(byId[id], edits[id]); });
+function persist(){ try{ localStorage.setItem(KEY, JSON.stringify(edits)); }catch(e){} }
+function collectPositions(){ const p={}; NODES.forEach(n=> p[n.id]={x:Math.round(n.x), y:Math.round(n.y)}); return p; }
+
+/* ================= RENDER ================= */
+const viewport=document.getElementById('viewport'), world=document.getElementById('world'), svg=document.getElementById('edges');
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function cardHTML(n){
+  if(n.type==='message') return '<strong>'+esc(n.title)+'</strong><em>'+esc(n.trigger)+'</em>'+n.paras.map(p=>'<p>'+esc(p)+'</p>').join('')+'<span class="read">↳ Clique para ler tudo / editar</span>';
+  if(n.type==='note') return '<p>'+n.text+'</p><span class="read">↳ Clique para ler tudo / editar</span>';
+  return n.text;
+}
+NODES.forEach(n=>{
+  const el=document.createElement('div');
+  el.className='node '+n.type; el.dataset.id=n.id;
+  el.style.left=n.x+'px'; el.style.top=n.y+'px'; el.style.width=n.w+'px';
+  el.innerHTML=cardHTML(n);
+  world.appendChild(el); n.el=el;
+});
+const edgeEls=EDGES.map(e=>{
+  const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+  p.setAttribute('marker-end','url(#arrow)'); svg.appendChild(p);
+  return {from:e[0],to:e[1],fs:e[2],ts:e[3],el:p};
+});
+function rect(id){ const n=byId[id]; return {x:n.x,y:n.y,w:n.el.offsetWidth,h:n.el.offsetHeight}; }
+function anchor(r,s){ if(s==='bottom')return{x:r.x+r.w/2,y:r.y+r.h}; if(s==='top')return{x:r.x+r.w/2,y:r.y}; if(s==='right')return{x:r.x+r.w,y:r.y+r.h/2}; return{x:r.x,y:r.y+r.h/2}; }
+function ctrl(p,s,d){ if(s==='bottom')return[p.x,p.y+d]; if(s==='top')return[p.x,p.y-d]; if(s==='right')return[p.x+d,p.y]; return[p.x-d,p.y]; }
+function updateEdges(){
+  edgeEls.forEach(e=>{
+    const a=anchor(rect(e.from),e.fs), b=anchor(rect(e.to),e.ts);
+    const d=Math.max(30,Math.min(140,Math.hypot(b.x-a.x,b.y-a.y)*0.35));
+    const c1=ctrl(a,e.fs,d), c2=ctrl(b,e.ts,d);
+    e.el.setAttribute('d','M'+a.x+','+a.y+' C'+c1[0]+','+c1[1]+' '+c2[0]+','+c2[1]+' '+b.x+','+b.y);
+  });
+}
+
+/* ================= PAN / ZOOM / DRAG (com fundo infinito) ================= */
+let pan={x:0,y:0}, zoom=1;
+const label=document.getElementById('zoomLabel');
+function apply(){
+  world.style.transform='translate('+pan.x+'px,'+pan.y+'px) scale('+zoom+')';
+  label.textContent=Math.round(zoom*100)+'%';
+  /* fundo pontilhado infinito: acompanha pan e zoom */
+  const dot=Math.max(0.7, 1.1*zoom);
+  viewport.style.backgroundImage='radial-gradient(#d9e0eb '+dot+'px, transparent '+dot+'px)';
+  viewport.style.backgroundSize=(24*zoom)+'px '+(24*zoom)+'px';
+  viewport.style.backgroundPosition=pan.x+'px '+pan.y+'px';
+}
+const clampZ=z=>Math.max(0.25,Math.min(2.5,z));
+function zoomAt(px,py,f){ const r=viewport.getBoundingClientRect(),mx=px-r.left,my=py-r.top,nz=clampZ(zoom*f);
+  pan.x=mx-(mx-pan.x)*(nz/zoom); pan.y=my-(my-pan.y)*(nz/zoom); zoom=nz; apply(); }
+function fit(){
+  let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+  NODES.forEach(n=>{ const r=rect(n.id); minX=Math.min(minX,r.x); minY=Math.min(minY,r.y); maxX=Math.max(maxX,r.x+r.w); maxY=Math.max(maxY,r.y+r.h); });
+  const pad=70,bw=maxX-minX+pad*2,bh=maxY-minY+pad*2,vw=viewport.clientWidth,vh=viewport.clientHeight;
+  zoom=clampZ(Math.min(vw/bw,vh/bh,1.15));
+  pan.x=(vw-bw*zoom)/2-(minX-pad)*zoom; pan.y=(vh-bh*zoom)/2-(minY-pad)*zoom; apply();
+}
+document.getElementById('zin').onclick=()=>{const r=viewport.getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,1.2);};
+document.getElementById('zout').onclick=()=>{const r=viewport.getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,1/1.2);};
+document.getElementById('zfit').onclick=fit;
+document.getElementById('btnZen').onclick=()=>{ document.body.classList.toggle('zen'); requestAnimationFrame(fit); };
+viewport.addEventListener('wheel',e=>{e.preventDefault();zoomAt(e.clientX,e.clientY,e.deltaY<0?1.12:1.12===0?1:1/1.12);},{passive:false});
+window.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  const r=viewport.getBoundingClientRect();
+  if(e.key==='+'||e.key==='=') zoomAt(r.left+r.width/2,r.top+r.height/2,1.2);
+  if(e.key==='-') zoomAt(r.left+r.width/2,r.top+r.height/2,1/1.2);
+  if(e.key==='0') fit();
+});
+const pointers=new Map(); let drag=null,pinch=null;
+viewport.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.ui-overlay')) return; /* NÃO captura cliques nos controles */
+  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY}); viewport.setPointerCapture(e.pointerId);
+  if(pointers.size===2){ drag=null; const p=[...pointers.values()];
+    pinch={d0:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),z0:zoom,p0:{...pan},mid0:{x:(p[0].x+p[1].x)/2,y:(p[0].y+p[1].y)/2}}; return; }
+  const nodeEl=e.target.closest('.node');
+  if(nodeEl){ const n=byId[nodeEl.dataset.id]; drag={type:'node',n,sx:e.clientX,sy:e.clientY,ox:n.x,oy:n.y,moved:false}; }
+  else{ drag={type:'pan',sx:e.clientX,sy:e.clientY,ox:pan.x,oy:pan.y,moved:false}; viewport.classList.add('panning'); }
+});
+viewport.addEventListener('pointermove',e=>{
+  if(pointers.has(e.pointerId)) pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pinch&&pointers.size===2){
+    const p=[...pointers.values()],d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),mid={x:(p[0].x+p[1].x)/2,y:(p[0].y+p[1].y)/2};
+    const r=viewport.getBoundingClientRect(),nz=clampZ(pinch.z0*(d/pinch.d0));
+    const wx=(pinch.mid0.x-r.left-pinch.p0.x)/pinch.z0, wy=(pinch.mid0.y-r.top-pinch.p0.y)/pinch.z0;
+    zoom=nz; pan.x=(mid.x-r.left)-wx*nz; pan.y=(mid.y-r.top)-wy*nz; apply(); return;
+  }
+  if(!drag) return;
+  const dx=e.clientX-drag.sx, dy=e.clientY-drag.sy;
+  if(Math.abs(dx)>3||Math.abs(dy)>3) drag.moved=true;
+  if(drag.type==='node'){ drag.n.x=drag.ox+dx/zoom; drag.n.y=drag.oy+dy/zoom;
+    drag.n.el.style.left=drag.n.x+'px'; drag.n.el.style.top=drag.n.y+'px'; updateEdges(); }
+  else{ pan.x=drag.ox+dx; pan.y=drag.oy+dy; apply(); }
+});
+function endPointer(e){
+  pointers.delete(e.pointerId); if(pointers.size<2) pinch=null;
+  viewport.classList.remove('panning');
+  if(drag&&!drag.moved){ if(drag.type==='node') select(drag.n.id); else deselect(); }
+  if(drag&&drag.type==='node'&&drag.moved){ edits.__pos=collectPositions(); persist(); }
+  drag=null;
+}
+viewport.addEventListener('pointerup',endPointer);
+viewport.addEventListener('pointercancel',endPointer);
+viewport.addEventListener('dblclick',e=>{
+  const nodeEl=e.target.closest('.node'); if(!nodeEl) return;
+  const r=rect(nodeEl.dataset.id), vr=viewport.getBoundingClientRect();
+  pan.x=vr.width/2-(r.x+r.w/2)*zoom; pan.y=vr.height/2-(r.y+r.h/2)*zoom; apply();
+});
+
+/* ================= DETALHES + EDIÇÃO ================= */
+const details=document.getElementById('details'), dbody=document.getElementById('dbody');
+let selected=null;
+function deselect(){
+  if(selected){ selected.el.classList.remove('selected'); selected=null; }
+  edgeEls.forEach(ed=>{ ed.el.classList.remove('hl'); ed.el.setAttribute('marker-end','url(#arrow)'); });
+  details.classList.remove('open');
+}
+function select(id){
+  deselect();
+  const n=byId[id]; selected=n; n.el.classList.add('selected');
+  edgeEls.forEach(ed=>{ if(ed.from===id||ed.to===id){ ed.el.classList.add('hl'); ed.el.setAttribute('marker-end','url(#arrowHl)'); } });
+  const badge=TYPE_BADGE[n.type]||TYPE_BADGE.process;
+  let html='<span class="dbadge" style="background:'+badge[1]+';color:'+badge[2]+'">'+badge[0]+'</span>';
+  if(n.type==='message'){
+    html+='<h3>'+esc(n.title)+'</h3><div class="trig">'+esc(n.trigger)+'</div>';
+    n.paras.forEach(p=> html+='<p>'+esc(p)+'</p>');
+    html+='<button class="hbtn green" id="editBtn">✏️ Editar mensagem</button>';
+  } else if(n.type==='note'){
+    html+='<h3>Nota de escopo / configuração</h3><p>'+esc(n.full||n.text)+'</p><button class="hbtn green" id="editBtn">✏️ Editar nota</button>';
+  } else {
+    html+='<h3>'+esc((n.title||n.text).replace(/<br>/g,' — '))+'</h3><p>'+esc(n.text.replace(/<br>/g,'\n'))+'</p>';
+  }
+  dbody.innerHTML=html;
+  const eb=document.getElementById('editBtn');
+  if(eb) eb.onclick=()=>openEditor(n);
+  details.classList.add('open');
+}
+function openEditor(n){
+  const isMsg=n.type==='message';
+  dbody.innerHTML =
+    '<span class="dbadge" style="background:#e8f7ee;color:#199f68">Modo edição</span>'+
+    (isMsg? '<div class="field"><label>Título</label><input id="edTitle" value="'+esc(n.title)+'"></div>'+
+            '<div class="field"><label>Gatilho / tempo</label><input id="edTrigger" value="'+esc(n.trigger)+'"></div>':'')+
+    '<div class="field"><label>'+(isMsg?'Mensagem (parágrafos separados por linha em branco)':'Texto da nota')+'</label>'+
+    '<textarea id="edText">'+esc(isMsg? n.paras.join('\n\n') : (n.full||n.text))+'</textarea></div>'+
+    '<div class="edit-actions"><button class="hbtn primary" id="edSave">💾 Salvar</button><button class="hbtn" id="edCancel">Cancelar</button></div>'+
+    '<p class="hint">A edição fica salva neste navegador. Use <b>💾 Salvar HTML</b> para baixar o arquivo com tudo embutido e compartilhar.</p>';
+  document.getElementById('edCancel').onclick=()=>select(n.id);
+  document.getElementById('edSave').onclick=()=>{
+    if(isMsg){
+      n.title=document.getElementById('edTitle').value.trim()||n.title;
+      n.trigger=document.getElementById('edTrigger').value.trim()||n.trigger;
+      n.paras=document.getElementById('edText').value.split(/\n{2,}/).map(s=>s.trim()).filter(Boolean);
+      if(!n.paras.length) n.paras=[' '];
+      edits[n.id]={title:n.title,trigger:n.trigger,paras:n.paras};
+    } else {
+      const v=document.getElementById('edText').value;
+      n.full=v; n.text=v.replace(/\n/g,'<br>');
+      edits[n.id]={full:n.full,text:n.text};
+    }
+    edits.__pos=collectPositions(); persist();
+    n.el.innerHTML=cardHTML(n); updateEdges(); select(n.id);
+    toast('Editado e salvo neste navegador ✔');
+  };
+}
+document.getElementById('dclose').onclick=deselect;
+
+/* ================= SALVAR / PDF / RESET ================= */
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),3200); }
+function bakedHTML(){
+  edits.__pos=collectPositions(); persist();
+  const json=JSON.stringify(edits);
+  return PRISTINE.replace(/(<script type="application\/json" id="saved-edits">)[\s\S]*?(<\/script>)/, (m,a,b)=>a+json+b);
+}
+document.getElementById('btnSaveHtml').onclick=()=>{
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([bakedHTML()],{type:'text/html'}));
+  a.download='fluxo-crm-drogarias-raji.html';
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('HTML baixado com mensagens e posições embutidas 💾');
+};
+document.getElementById('btnPdf').onclick=()=>{
+  toast('Na janela de impressão, escolha "Salvar como PDF" 📄');
+  setTimeout(()=>window.print(),500);
+};
+document.getElementById('btnReset').onclick=()=>{
+  if(confirm('Restaurar as mensagens e posições originais? As edições salvas NESTE navegador serão descartadas.')){
+    localStorage.removeItem(KEY); location.reload();
+  }
+};
+
+/* ================= INIT ================= */
+updateEdges();
+requestAnimationFrame(()=>{ updateEdges(); fit(); });
+window.addEventListener('resize',()=>apply());
+</script>
+</body>
+</html>
